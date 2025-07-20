@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Video Player</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for Inter font and dark mode layout */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a202c; /* Dark background */
+            color: #e2e8f0; /* Light text color */
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* Align to start to allow scrolling */
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        #app-container {
+            background-color: #2d3748; /* Slightly lighter dark background for container */
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); /* Darker shadow */
+            padding: 30px;
+            width: 100%;
+            max-width: 900px;
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .input-group label {
+            font-weight: 600;
+            color: #cbd5e0; /* Lighter label color */
+        }
+        .input-group input[type="text"] {
+            padding: 12px;
+            border: 1px solid #4a5568; /* Darker border */
+            border-radius: 8px;
+            font-size: 16px;
+            background-color: #4a5568; /* Darker input background */
+            color: #e2e8f0; /* Light text in input */
+            transition: border-color 0.2s;
+        }
+        .input-group input[type="text"]:focus {
+            outline: none;
+            border-color: #6366f1; /* Indigo 500 */
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.4); /* More visible focus shadow */
+        }
+        .btn {
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+            text-align: center;
+        }
+        .btn-primary {
+            background-color: #6366f1; /* Indigo 500 */
+            color: white;
+            border: none;
+        }
+        .btn-primary:hover {
+            background-color: #4f46e5; /* Indigo 600 */
+            transform: translateY(-1px);
+        }
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+        .btn-secondary {
+            background-color: #4338ca; /* Indigo 700 - darker for secondary in dark mode */
+            color: #e0e7ff; /* Indigo 100 */
+            border: none;
+        }
+        .btn-secondary:hover {
+            background-color: #3730a3; /* Indigo 800 */
+            transform: translateY(-1px);
+        }
+        .btn-secondary:active {
+            transform: translateY(0);
+        }
+        #player {
+            width: 100%;
+            aspect-ratio: 16 / 9; /* Maintain 16:9 aspect ratio */
+            border-radius: 8px;
+            overflow: hidden; /* Ensures rounded corners apply to iframe */
+            background-color: #000; /* Placeholder background */
+        }
+        /* Custom alert styling for dark mode */
+        #custom-alert {
+            background-color: #dc2626; /* Red 600 */
+            color: white;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+        .tab-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .tab-button {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            background-color: #4a5568; /* Darker background for inactive tab */
+            color: #cbd5e0;
+            border: none;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .tab-button.active {
+            background-color: #6366f1; /* Indigo 500 for active tab */
+            color: white;
+        }
+        .tab-button:hover:not(.active) {
+            background-color: #5a6578;
+        }
+        .hidden {
+            display: none;
+        }
+        .user-id-display {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            word-break: break-all;
+            margin-top: 10px;
+            text-align: center;
+        }
+        .footer-credit {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 0.9rem;
+            color: #94a3b8;
+        }
+    </style>
+</head>
+<body>
+    <div id="app-container">
+        <h1 class="text-3xl font-bold text-center text-gray-100 mb-6">YouTube Video Player</h1>
+
+        <!-- User ID Display (Still present for potential future use or debugging, though less critical now) -->
+        <div class="user-id-display" id="user-id-display">User ID: Loading...</div>
+
+        <!-- Video Player Tab Content -->
+        <div id="video-player-tab">
+            <!-- Video Input Section -->
+            <div class="input-group">
+                <label for="youtubeLink">YouTube Video Link:</label>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <input type="text" id="youtubeLink" placeholder="e.g., https://www.youtube.com/watch?v=dQw4w9WgXcQ" class="flex-grow">
+                    <button id="loadVideoBtn" class="btn btn-primary">Load Video</button>
+                </div>
+            </div>
+
+            <!-- YouTube Player -->
+            <div id="player" class="rounded-lg shadow-md"></div>
+        </div>
+
+        <div class="footer-credit">
+            Made by Avinash Pandey
+        </div>
+    </div>
+
+    <script type="module">
+        // Firebase imports are removed as saved videos functionality is removed
+        // No need for firebase-app, firebase-auth, firebase-firestore imports if not used.
+
+        // Global variables (no longer Firebase related)
+        let player; // YouTube player object
+
+        // Expose alertUser and utility functions to the global window object
+        window.alertUser = (message) => {
+            const existingAlert = document.getElementById('custom-alert');
+            if (existingAlert) {
+                existingAlert.remove();
+            }
+
+            const alertDiv = document.createElement('div');
+            alertDiv.id = 'custom-alert';
+            alertDiv.className = 'fixed bottom-5 right-5 bg-red-600 text-white px-5 py-3 rounded-lg shadow-lg flex items-center gap-3 z-50';
+            alertDiv.innerHTML = `
+                <span>${message}</span>
+                <button class="text-white font-bold text-lg leading-none" onclick="this.parentNode.remove()">&times;</button>
+            `;
+            document.body.appendChild(alertDiv);
+
+            setTimeout(() => {
+                if (document.getElementById('custom-alert')) {
+                    document.getElementById('custom-alert').remove();
+                }
+            }, 5000);
+        };
+
+        window.getYouTubeVideoId = (url) => {
+            const regExp = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+            const match = url.match(regExp);
+            return (match && match[2].length === 11) ? match[2] : null;
+        };
+
+        // DOMContentLoaded ensures all HTML is loaded before script runs
+        document.addEventListener('DOMContentLoaded', async () => {
+            // No Firebase initialization needed anymore
+            const userIdDisplay = document.getElementById('user-id-display');
+            if (userIdDisplay) {
+                userIdDisplay.textContent = `User ID: Not Applicable (No Firebase)`;
+            }
+
+            // Initial load of YouTube API script
+            loadYouTubeAPI();
+            // Since there's only one tab, no need for showTab, but keeping it for consistency if more tabs are added later.
+            // window.showTab('video-player-tab');
+
+            // Event Listeners
+            const loadVideoBtn = document.getElementById('loadVideoBtn');
+            if (loadVideoBtn) {
+                loadVideoBtn.addEventListener('click', () => {
+                    const youtubeLink = document.getElementById('youtubeLink').value;
+                    window.loadVideo(youtubeLink);
+                });
+            }
+        });
+
+        // YouTube Player variables and functions
+        // loadYouTubeAPI and onYouTubeIframeAPIReady are still needed for the player
+        function loadYouTubeAPI() {
+            const tag = document.createElement('script');
+            tag.src = "https://www.youtube.com/iframe_api";
+            const firstScriptTag = document.getElementsByTagName('script')[0];
+            firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        }
+
+        window.onYouTubeIframeAPIReady = function() {
+            console.log("YouTube IFrame API is ready.");
+        };
+
+        window.loadVideo = (youtubeLink) => {
+            const videoId = window.getYouTubeVideoId(youtubeLink);
+
+            if (!videoId) {
+                window.alertUser("Please enter a valid YouTube video link.");
+                return;
+            }
+
+            if (player) {
+                player.loadVideoById(videoId);
+            } else {
+                player = new YT.Player('player', {
+                    videoId: videoId,
+                    playerVars: {
+                        'autoplay': 1,
+                        'controls': 1,
+                        'modestbranding': 1,
+                        'rel': 0,
+                        'showinfo': 0
+                    },
+                    events: {
+                        'onReady': (event) => {
+                            event.target.playVideo();
+                            console.log("YouTube player ready.");
+                        },
+                        'onError': (event) => {
+                            console.error("YouTube player error:", event.data);
+                            window.alertUser("Error loading video. Please check the link.");
+                        }
+                    }
+                });
+            }
+            const youtubeLinkInput = document.getElementById('youtubeLink');
+            if (youtubeLinkInput) {
+                youtubeLinkInput.value = youtubeLink;
+            }
+        };
+    </script>
+</body>
+</html>
